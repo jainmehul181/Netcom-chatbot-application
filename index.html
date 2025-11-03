@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Netcom Bot</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+
+    /* Mic button style */
+    .inside-mic-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      font-size: 18px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      transition: background 0.3s, transform 0.2s;
+    }
+    .inside-mic-btn:hover {
+      background: #0056b3;
+      transform: scale(1.1);
+    }
+    .inside-mic-btn.listening { background: #28a745 !important; }
+
+    /* Cross button style */
+    .close-chat-btn {
+      background: rgba(255,255,255,0.15);
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: white;
+      font-weight: bold;
+      margin-left: auto;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s, transform 0.2s;
+    }
+    .close-chat-btn:hover {
+      background: rgba(255,255,255,0.35);
+      transform: scale(1.1);
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Dialogflow Messenger -->
+  <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+  <df-messenger
+    intent="WELCOME"
+    chat-title="NETCOM AI Assistant"
+    agent-id="4c81677a-3d26-4a8b-885a-1746163370d4"
+    language-code="en"
+  ></df-messenger>
+
+  <script>
+    (function() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        console.warn("Speech recognition not supported in this browser.");
+      }
+
+      function injectFeatures() {
+        try {
+          const messenger = document.querySelector("df-messenger");
+          if (!messenger) return;
+
+          const chat = messenger.shadowRoot?.querySelector("df-messenger-chat");
+          const userInput = chat?.shadowRoot?.querySelector("df-messenger-user-input");
+          const header = chat?.shadowRoot?.querySelector("df-messenger-titlebar");
+          const inputBox = userInput?.shadowRoot?.querySelector("textarea") || userInput?.shadowRoot?.querySelector("input");
+          const sendBtn = userInput?.shadowRoot?.querySelector("button");
+
+          if (!inputBox || !sendBtn || !header) return; // not loaded yet
+
+          /* === MIC BUTTON === */
+          if (!userInput.shadowRoot.querySelector("#df-mic-btn")) {
+            const micBtn = document.createElement("button");
+            micBtn.id = "df-mic-btn";
+            micBtn.className = "inside-mic-btn";
+            micBtn.innerText = "🎤";
+            sendBtn.parentNode.insertBefore(micBtn, sendBtn);
+
+            const recognition = new SpeechRecognition();
+            recognition.lang = "en-US";
+            recognition.interimResults = false;
+
+            micBtn.addEventListener("click", () => {
+              recognition.start();
+              micBtn.classList.add("listening");
+              micBtn.innerText = "🔴";
+            });
+
+            recognition.onresult = (event) => {
+              const transcript = event.results[0][0].transcript;
+              inputBox.value = transcript;
+              inputBox.dispatchEvent(new Event("input", { bubbles: true }));
+            };
+
+            recognition.onend = () => {
+              micBtn.classList.remove("listening");
+              micBtn.innerText = "🎤";
+            };
+          }
+
+          /* === CLOSE BUTTON === */
+          if (!header.shadowRoot?.querySelector("#df-close-btn")) {
+            const headerRoot = header.shadowRoot;
+            const titlebarDiv = headerRoot.querySelector(".title-wrapper");
+            if (titlebarDiv) {
+              const closeBtn = document.createElement("button");
+              closeBtn.id = "df-close-btn";
+              closeBtn.className = "close-chat-btn";
+              closeBtn.innerHTML = "✖"; // cross symbol
+              titlebarDiv.appendChild(closeBtn);
+
+              closeBtn.addEventListener("click", () => {
+                messenger.style.display = "none"; // hide chatbot
+              });
+            }
+          }
+
+        } catch (err) {
+          console.error("Injection failed:", err);
+        }
+      }
+
+      // keep checking until chat fully loads
+      setInterval(() => {
+        injectFeatures();
+      }, 500);
+    })();
+  </script>
+</body>
+</html>
